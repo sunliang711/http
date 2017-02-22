@@ -43,7 +43,7 @@ func GetLinks(url string) ([]string, error) {
 	//v是匹配的链接的字符串<h href="xxx" 以及链接xxx组成的slice
 	for _, v := range links {
 		if len(v) == 2 {
-			fmt.Printf("get link: %s\n", v[1])
+			// fmt.Printf("get link: %s\n", v[1])
 			retLinks = append(retLinks, v[1])
 		}
 	}
