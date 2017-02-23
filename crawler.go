@@ -55,6 +55,9 @@ func GetLinks(url string) ([]string, error) {
 	for _, v := range links {
 		if len(v) == 2 {
 			// fmt.Printf("get link: %s\n", v[1])
+			if strings.Contains(v[1], "..") {
+				continue
+			}
 			retLinks = append(retLinks, v[1])
 		}
 	}
@@ -85,7 +88,6 @@ func GetLinksAndFilter(url string, filterFunc func(url string) bool, urlChan cha
 	}
 	if !isHtml {
 		if filterFunc(url) {
-			fmt.Printf("found ISO: %s\n", url)
 			urlChan <- url
 		}
 		return nil, fmt.Errorf("The url: %s is not html\n", url)
@@ -138,25 +140,28 @@ func IsHtml(res *http.Response) (bool, error) {
 
 //下载指定的url
 //@param url string
-func Download(url string) {
+func Download(url string) error {
 	if len(url) == 0 {
-		return
+		return fmt.Errorf("url is empty\n")
 	}
 
 	client := &http.Client{
-		Timeout: time.Second * 10,
+	//Timeout: time.Second * 10,
 	}
 	resp, err := client.Get(url)
 	if err != nil {
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
-	file, err := os.Create(url)
+	splits := strings.Split(url, "/")
+	filename := splits[len(splits)-1]
+	file, err := os.Create(filename)
 	if err != nil {
-		return
+		return err
 	}
 	defer file.Close()
 
-	io.Copy(file, resp.Body)
+	_, err = io.Copy(file, resp.Body)
+	return err
 }
