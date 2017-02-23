@@ -28,6 +28,13 @@ func GetLinks(url string) ([]string, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	isHtml, err := IsHtml(resp)
+	if err != nil {
+		return nil, err
+	}
+	if !isHtml {
+		return nil, fmt.Errorf("The url: %s is not html\n", url)
+	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -60,7 +67,7 @@ func IsHtml(res *http.Response) (bool, error) {
 	contentType, exist := res.Header["Content-Type"]
 	if exist {
 		for _, v := range contentType {
-			if strings.Contains(v, "text/html") {
+			if strings.Contains(strings.ToLower(v), "text/html") {
 				return true, nil
 			}
 		}
