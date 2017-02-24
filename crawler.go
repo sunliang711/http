@@ -37,7 +37,7 @@ func GetLinks(url string) ([]string, error) {
 		return nil, err
 	}
 	if !isHtml {
-		return nil, fmt.Errorf("The url: %s is not html\n", url)
+		return nil, fmt.Errorf("The url: %s is not html page\n", url)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -54,11 +54,16 @@ func GetLinks(url string) ([]string, error) {
 	//v是匹配的链接的字符串<h href="xxx" 以及链接xxx组成的slice
 	for _, v := range links {
 		if len(v) == 2 {
-			// fmt.Printf("get link: %s\n", v[1])
+			//过滤掉父目录
 			if strings.Contains(v[1], "..") {
 				continue
 			}
-			retLinks = append(retLinks, v[1])
+			u, err := URL.Parse(url)
+			if err != nil {
+				return nil, fmt.Errorf("url %s is not valid\n", url)
+			}
+			u.Path = path.Join(u.Path, v[1])
+			retLinks = append(retLinks, u.String())
 		}
 	}
 	return retLinks, nil
@@ -90,7 +95,7 @@ func GetLinksAndFilter(url string, filterFunc func(url string) bool, urlChan cha
 		if filterFunc(url) {
 			urlChan <- url
 		}
-		return nil, fmt.Errorf("The url: %s is not html\n", url)
+		return nil, fmt.Errorf("The url: %s is not html page\n", url)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -107,6 +112,10 @@ func GetLinksAndFilter(url string, filterFunc func(url string) bool, urlChan cha
 	//v是匹配的链接的字符串<h href="xxx" 以及链接xxx组成的slice
 	for _, v := range links {
 		if len(v) == 2 {
+			//过滤掉父目录
+			if strings.Contains(v[1], "..") {
+				continue
+			}
 			u, err := URL.Parse(url)
 			if err != nil {
 				return nil, fmt.Errorf("url %s is not valid\n", url)
@@ -145,6 +154,7 @@ func Download(url string) error {
 		return fmt.Errorf("url is empty\n")
 	}
 
+	//下载不能指定timeout，否则在timeout时间内没下完就会停止
 	client := &http.Client{
 	//Timeout: time.Second * 10,
 	}
