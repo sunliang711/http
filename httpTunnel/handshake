@@ -1,0 +1,87 @@
+* Rebuilt URL to: https://cn.bing.com/
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying ::1...
+* TCP_NODELAY set
+* Connected to localhost (::1) port 8786 (#0)
+* allocate connect buffer!
+* Establish HTTP proxy tunnel to cn.bing.com:443
+> CONNECT cn.bing.com:443 HTTP/1.1
+> Host: cn.bing.com:443
+> User-Agent: curl/7.61.0
+> Proxy-Connection: Keep-Alive
+> 
+< HTTP/1.1 200 OK
+< 
+* Proxy replied 200 to CONNECT request
+* CONNECT phase completed!
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*   CAfile: none
+  CApath: /etc/ssl/certs
+} [5 bytes data]
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+} [512 bytes data]
+* CONNECT phase completed!
+* CONNECT phase completed!
+{ [5 bytes data]
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+{ [94 bytes data]
+* TLSv1.2 (IN), TLS handshake, Certificate (11):
+{ [5059 bytes data]
+* TLSv1.2 (IN), TLS handshake, Server key exchange (12):
+{ [300 bytes data]
+* TLSv1.2 (IN), TLS handshake, Server finished (14):
+{ [4 bytes data]
+* TLSv1.2 (OUT), TLS handshake, Client key exchange (16):
+} [37 bytes data]
+* TLSv1.2 (OUT), TLS change cipher, Client hello (1):
+} [1 bytes data]
+* TLSv1.2 (OUT), TLS handshake, Finished (20):
+} [16 bytes data]
+* TLSv1.2 (IN), TLS handshake, Finished (20):
+{ [16 bytes data]
+* SSL connection using TLSv1.2 / ECDHE-RSA-AES128-GCM-SHA256
+* ALPN, server accepted to use h2
+* Server certificate:
+*  subject: CN=www.bing.com
+*  start date: Apr 30 20:48:00 2019 GMT
+*  expire date: Apr 30 20:48:00 2021 GMT
+*  subjectAltName: host "cn.bing.com" matched cert's "*.bing.com"
+*  issuer: C=US; ST=Washington; L=Redmond; O=Microsoft Corporation; OU=Microsoft IT; CN=Microsoft IT TLS CA 2
+*  SSL certificate verify ok.
+* Using HTTP2, server supports multi-use
+* Connection state changed (HTTP/2 confirmed)
+* Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+} [5 bytes data]
+* Using Stream ID: 1 (easy handle 0x562486d4ed00)
+} [5 bytes data]
+> GET / HTTP/2
+> Host: cn.bing.com
+> User-Agent: curl/7.61.0
+> Accept: */*
+> 
+{ [5 bytes data]
+* Connection state changed (MAX_CONCURRENT_STREAMS == 100)!
+} [5 bytes data]
+< HTTP/2 200 
+< cache-control: private, max-age=0
+< content-length: 114619
+< content-type: text/html; charset=utf-8
+< p3p: CP="NON UNI COM NAV STA LOC CURa DEVa PSAa PSDa OUR IND"
+< set-cookie: SRCHD=AF=NOFORM; domain=.bing.com; expires=Sat, 02-Oct-2021 06:21:40 GMT; path=/
+< set-cookie: SRCHUID=V=2&GUID=8C6DDFF65D53427097D65BD794804637&dmnchg=1; domain=.bing.com; expires=Sat, 02-Oct-2021 06:21:40 GMT; path=/
+< set-cookie: SRCHUSR=DOB=20191002; domain=.bing.com; expires=Sat, 02-Oct-2021 06:21:40 GMT; path=/
+< set-cookie: _SS=SID=37827F64071168901A58728D063F6949; domain=.bing.com; path=/
+< strict-transport-security: max-age=31536000; includeSubDomains; preload
+< x-msedge-ref: Ref A: 74C92B2460704133B1808E23F749877C Ref B: BJ1EDGE0112 Ref C: 2019-10-02T06:21:40Z
+< set-cookie: _EDGE_S=F=1&SID=37827F64071168901A58728D063F6949; path=/; httponly; domain=bing.com
+< set-cookie: _EDGE_V=1; path=/; httponly; expires=Mon, 26-Oct-2020 06:21:40 GMT; domain=bing.com
+< set-cookie: MUID=26865B81ED966EC300825668ECB86F4F; path=/; expires=Mon, 26-Oct-2020 06:21:40 GMT; domain=bing.com
+< set-cookie: MUIDB=26865B81ED966EC300825668ECB86F4F; path=/; httponly; expires=Mon, 26-Oct-2020 06:21:40 GMT
+< date: Wed, 02 Oct 2019 06:21:39 GMT
+< 
+{ [2255 bytes data]
+ 23  111k   23 26831    0     0   129k      0 --:--:-- --:--:-- --:--:--  128k100  111k  100  111k    0     0   435k      0 --:--:-- --:--:-- --:--:--  433k
+* Connection #0 to host localhost left intact

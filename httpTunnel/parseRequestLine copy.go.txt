@@ -1,0 +1,240 @@
+package main
+
+import "fmt"
+
+type state byte
+
+const (
+	stateStart state = iota
+	stateSpacesAfterMethod
+	statePath
+	stateSpacesAfterPath
+	stateHTTP
+	stateMajor
+	staeMinor
+	stateCR
+	stateLF
+	stateEnd
+)
+
+const (
+	CR = '\r'
+	LF = '\n'
+)
+
+// parseRequestLine TODO
+// 2019/10/03 12:56:50
+func parseRequestLine(data []byte) (remain []byte, method, path string, major, minor int, err error) {
+	var (
+		st    state = stateStart
+		token []byte
+		i     int
+		b     byte
+	)
+
+OUTTER_LOOP:
+	for i, b = range data {
+		switch st {
+		case stateStart:
+			if b == ' ' {
+				st = stateSpacesAfterMethod
+				method = string(token)
+				token = []byte{}
+				break
+			}
+			token = append(token, b)
+		case stateSpacesAfterMethod:
+			if b != ' ' {
+				token = append(token, b)
+				st = statePath
+				break
+			}
+
+		case statePath:
+			if b == ' ' {
+				st = stateSpacesAfterPath
+				path = string(token)
+				token = []byte{}
+				break
+			}
+			token = append(token, b)
+
+		case stateSpacesAfterPath:
+			if b != ' ' {
+				st = stateHTTP
+				token = append(token, b)
+				break
+			}
+
+		case stateHTTP:
+			if b == '/' {
+				if string(token) != "HTTP" {
+					err = fmt.Errorf("response status not http")
+					return
+				}
+				token = []byte{}
+				st = stateMajor
+				break
+			}
+			token = append(token, b)
+		case stateMajor:
+			if b >= '0' && b <= '9' {
+				major = major*10 + int(b-'0')
+				break
+			}
+			if b == '.' {
+				st = staeMinor
+				break
+			}
+			err = fmt.Errorf("major not valid")
+			return
+
+		case staeMinor:
+			if b >= '0' && b <= '9' {
+				minor = minor*10 + int(b-'0')
+				break
+			}
+			if b == CR {
+				st = stateCR
+				break
+			}
+			err = fmt.Errorf("minor not valid")
+			return
+
+		case stateCR:
+			if b == LF {
+				st = stateEnd
+				break OUTTER_LOOP
+			}
+			err = fmt.Errorf("not lf after cr")
+			return
+		}
+
+	}
+	if st != stateEnd {
+		err = fmt.Errorf("not end with stateEnd")
+		return
+	}
+	remain = data[i+1:]
+	return
+}
+
+const (
+	stateKey state = iota
+	stateSpacesAfterKey
+	stateColon
+	stateSpacesAfterColon
+	stateValue
+	stateCRLF
+	stateCRLFCR
+)
+
+// parseRequestHeaders TODO
+// 2019/10/03 16:06:59
+func parseRequestHeaders(data []byte) (remain []byte, headers map[string]string, err error) {
+	var (
+		index int
+		st    state = stateKey
+		b     byte
+		key   []byte
+		value []byte
+	)
+	headers = make(map[string]string)
+
+OUTTER:
+	for index, b = range data {
+		switch st {
+		case stateKey:
+			if b == ' ' {
+				st = stateSpacesAfterKey
+				break
+			}
+			if b == ':' {
+				st = stateColon
+				break
+			}
+			key = append(key, b)
+
+		case stateSpacesAfterKey:
+			if b == ':' {
+				st = stateColon
+				break
+			}
+			if b != ' ' {
+				err = fmt.Errorf("other char before colon")
+				return
+			}
+
+		case stateColon:
+			if b == ' ' {
+				st = stateSpacesAfterColon
+				break
+			}
+			st = stateValue
+
+		case stateSpacesAfterColon:
+			if b != ' ' {
+				st = stateValue
+				value = append(value, b)
+			}
+
+		case stateValue:
+			if b == CR {
+				headers[string(key)] = string(value)
+				key = []byte{}
+				value = []byte{}
+				st = stateCR
+				break
+			}
+			value = append(value, b)
+
+		case stateCR:
+			if b != LF {
+				err = fmt.Errorf("not lf after cr")
+				return
+			}
+			st = stateCRLF
+
+		case stateCRLF:
+			if b == CR {
+				st = stateCRLFCR
+				break
+			}
+			st = stateKey
+			key = append(key, b)
+
+		case stateCRLFCR:
+			if b == LF {
+				st = stateEnd
+				break OUTTER
+			}
+			err = fmt.Errorf("not lf after crlfcr")
+			return
+		}
+	}
+	if st != stateEnd {
+		err = fmt.Errorf("not end with stateEnd")
+	}
+	remain = data[index+1:]
+	return
+}
+
+// 2019/10/03 12:58:23
+func main() {
+	data := []byte("GET /haha/bb HTTP/10.99\r\nHost  :  bing.com\r\nUser-Agent  : ios 7.1\r\n\r\nabc")
+	remain, method, path, major, minor, err := parseRequestLine(data)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+	fmt.Printf("remain: %v, method: %v, path: %v, major: %v,minor: %v\n", string(remain), method, path, major, minor)
+
+	remain2, headers, err := parseRequestHeaders(remain)
+	if err != nil {
+		fmt.Printf("err: %v\n", err)
+	} else {
+		for k, v := range headers {
+			fmt.Printf("key: %v value: %v\n", k, v)
+		}
+		fmt.Printf("remain2: %v\n", string(remain2))
+	}
+}

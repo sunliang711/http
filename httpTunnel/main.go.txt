@@ -1,0 +1,254 @@
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
+	"net"
+	"strings"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+)
+
+// 2019/10/02 13:07:32
+func main() {
+	ln, err := net.Listen("tcp", ":8786")
+	if err != nil {
+		log.Fatalf("Listen on :8786 error: %v", err)
+	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			log.Errorf("Accept error: %v", err)
+			continue
+		}
+
+		go handleConn(conn)
+	}
+}
+
+const (
+	spliter = "\r\n"
+)
+
+// splitHTTPRequestHeader TODO
+// 2019/10/02 13:10:06
+func splitHTTPRequestHeader(data []byte, eof bool) (advance int, token []byte, err error) {
+	if data == nil || eof {
+		return 0, nil, nil
+	}
+	if n := bytes.Index(data, []byte(spliter)); n >= 0 {
+		advance = n + 2
+		token = data[:n+2]
+		return
+	}
+	return len(data), data, nil
+}
+
+func allData(data []byte, eof bool) (advance int, token []byte, err error) {
+	return len(data), data, nil
+}
+
+// handleConn TODO
+// 2019/10/02 13:09:52
+func handleConn(conn net.Conn) {
+	var (
+		method     string
+		remoteHost string
+		version    string
+	)
+	// scan := bufio.NewScanner(con)
+	// scan.Split(splitHTTPRequestHeader)
+	// headers := []string{}
+	// for scan.Scan() {
+	// 	header := scan.Text()
+	// 	log.Infof("header: %v", header)
+	// 	if header == "" {
+	// 		log.Infof("Header terminate.")
+	// 		break
+	// 	}
+	// 	headers = append(headers, header)
+	// }
+	// log.Infof("headers: %v", headers)
+
+	// for _, h := range headers {
+	// 	if strings.HasPrefix(h, "CONNECT") {
+	// 		log.Infof("Got CONNECT METHOD: %v", h)
+	// 		parts := strings.Split(h, " ")
+	// 		if len(parts) != 3 {
+	// 			log.Errorf("CONNECT method format error!")
+	// 			return
+	// 		}
+	// 		remoteHost = parts[1]
+	// 		version = parts[2]
+	// 		break
+	// 	}
+	// }
+	// if remoteHost == "" {
+	// 	log.Errorf("Cannot get remote host!!")
+	// 	return
+	// }
+	// log.Infof("remoteHost: %v", remoteHost)
+	// log.Infof("version: %v", version)
+
+	// log.Infof("Dial to remote host: %v ...", remoteHost)
+
+	pServer := New(conn)
+	err := pServer.readRequest()
+	if err != nil {
+		log.Errorf("read request error: %v", err)
+		return
+	}
+
+	line := strings.Split(pServer.StatusLine, " ")
+	method = line[0]
+	remoteHost = line[1]
+	version = line[2]
+	log.Infof("method: %v, remote host: %v, version: %v", method, remoteHost, version)
+	switch method {
+	case "CONNECT":
+		remoteConn, err := net.DialTimeout("tcp", remoteHost, time.Second*5)
+		if err != nil {
+			log.Errorf("Dial to remote host error: %v", err)
+			res := fmt.Sprintf("%v 400 Error\r\n\r\n", version)
+			_, err = conn.Write([]byte(res))
+			return
+		}
+		log.Infof("Connected to remote host: %v", remoteHost)
+		//response to client 200
+		res := fmt.Sprintf("%v 200 OK\r\n\r\n", version)
+		_, err = conn.Write([]byte(res))
+		if err != nil {
+			log.Errorf("response to client error: %v", err)
+			return
+		}
+		log.Printf("Written to client: %v", res)
+
+		go io.Copy(remoteConn, conn)
+		io.Copy(conn, remoteConn)
+	default:
+		log.Errorf("Not support method: '%v'", method)
+		res := fmt.Sprintf("%v 400 Error\r\n\r\n", version)
+		_, err = conn.Write([]byte(res))
+		return
+	}
+}
+
+// actionLine TODO
+// 2019/10/02 16:24:37
+func actionLine(conn net.Conn) ([]string, error) {
+	scan := bufio.NewScanner(conn)
+	scan.Split(splitHTTPRequestHeader)
+	var actionLine string
+	if scan.Scan() {
+		actionLine = scan.Text()
+	}
+	parts := strings.Split(actionLine, " ")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("No action line found")
+	}
+	return parts, nil
+}
+
+// headers TODO
+// 2019/10/02 16:26:56
+func headers(conn net.Conn) ([]string, error) {
+	scan := bufio.NewScanner(conn)
+	scan.Split(splitHTTPRequestHeader)
+	var (
+		header  string
+		headers []string
+	)
+	for scan.Scan() {
+		header = scan.Text()
+		headers = append(headers, header)
+	}
+	return headers, nil
+}
+
+// ProxyServer TODO
+// 2019/10/02 18:05:29
+type ProxyServer struct {
+	conn net.Conn
+
+	StatusLine string
+	Headers    map[string]string
+	Body       []byte
+}
+
+// New TODO
+// 2019/10/02 18:08:54
+func New(conn net.Conn) *ProxyServer {
+	conn.SetReadDeadline(time.Now().Add(time.Second * 2))
+	srv := &ProxyServer{
+		conn:    conn,
+		Headers: make(map[string]string),
+	}
+	return srv
+}
+
+// readRequest TODO
+// 2019/10/02 18:12:00
+func (p *ProxyServer) readRequest() error {
+	scanner := bufio.NewScanner(p.conn)
+	scanner.Split(splitHTTPRequestHeader)
+
+	// status line
+	if scanner.Scan() {
+		statusLine := scanner.Text()
+		statusLine = statusLine[:len(statusLine)-2]
+		if len(strings.Split(statusLine, " ")) != 3 {
+			return fmt.Errorf("Status line: %v not valid", statusLine)
+		}
+		p.StatusLine = statusLine
+	} else {
+		return fmt.Errorf("Cann't get request from client")
+	}
+	// headers
+	for scanner.Scan() {
+		header := scanner.Text()
+		header = header[:len(header)-2]
+		if header == "" {
+			log.Infof("header terminate")
+			break
+		}
+		log.Infof("Get header: %v", header)
+		parts := strings.Split(header, ": ")
+		if len(parts) != 2 {
+			return fmt.Errorf("Header: %v is invalid", header)
+		}
+		p.Headers[parts[0]] = parts[1]
+	}
+
+	//body
+	// log.Infof("get body...")
+	// for scanner.Scan() {
+	// 	log.Infof("111")
+	// 	bs := scanner.Bytes()
+	// 	log.Infof("bs: %v", bs)
+	// 	p.Body = append(p.Body, scanner.Bytes()...)
+
+	// }
+	// log.Infof("body: %v", string(p.Body))
+	// contentLength := p.Headers["Content-Length"]
+	// var clen int
+	// var err error
+	// if contentLength != "" {
+	// 	clen, err = strconv.Atoi(contentLength)
+	// 	if err != nil {
+	// 		return fmt.Errorf("Content-Length invalid")
+	// 	}
+	// 	buf := make([]byte, clen)
+	// 	nRead, err := io.ReadAtLeast(p.conn, buf, len(buf))
+	// 	if err != nil && err != io.EOF {
+	// 		return fmt.Errorf("Read body error: %v", err)
+	// 	}
+	// 	if nRead != clen {
+	// 		return fmt.Errorf("Read body size (%v) not equal to Content-Length (%v)", nRead, clen)
+	// 	}
+	// 	p.Body = buf
+	// }
+	return nil
+}
